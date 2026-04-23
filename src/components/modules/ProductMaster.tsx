@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useUnifiedData } from '../../contexts/UnifiedDataContext';
-import { COLLECTIONS } from '../../types/index';
+import { COLLECTIONS } from '../../types';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Input from '../common/Input';
