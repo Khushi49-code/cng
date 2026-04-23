@@ -3,6 +3,7 @@ import { useUnifiedData } from "../../contexts/UnifiedDataContext";
 import { formatDate } from "../../lib/utils";
 import Card from "../common/Card";
 import Button from "../common/Button";
+import { ReminderView } from "../../types";
 
 // Directly define COLLECTIONS to avoid import issues
 const COLLECTIONS = {
@@ -62,12 +63,12 @@ const AdminDashboard: React.FC = () => {
   }
 
   // Filter reminders - only show non-renewed and within days limit
-  const filteredReminders = reminders.filter(
-    (reminder) => reminder.days_until_expiry <= filterDays && !reminder.warranty_renewed
+  const filteredReminders: ReminderView[] = reminders.filter(
+    (reminder: ReminderView) => reminder.days_until_expiry <= filterDays && !reminder.warranty_renewed
   );
 
   // Sort by urgency (days left ascending)
-  const sortedReminders = [...filteredReminders].sort((a, b) => a.days_until_expiry - b.days_until_expiry);
+  const sortedReminders: ReminderView[] = [...filteredReminders].sort((a: ReminderView, b: ReminderView) => a.days_until_expiry - b.days_until_expiry);
 
   return (
     <div className="space-y-6 px-4 md:px-0">
@@ -136,7 +137,6 @@ const AdminDashboard: React.FC = () => {
             >
               7 Days
             </Button>
-
             <Button
               onClick={() => setFilterDays(15)}
               color={filterDays === 15 ? "blue" : "gray"}
@@ -144,7 +144,6 @@ const AdminDashboard: React.FC = () => {
             >
               15 Days
             </Button>
-
             <Button
               onClick={() => setFilterDays(30)}
               color={filterDays === 30 ? "blue" : "gray"}
@@ -152,7 +151,6 @@ const AdminDashboard: React.FC = () => {
             >
               30 Days
             </Button>
-
             <Button
               onClick={() => setFilterDays(60)}
               color={filterDays === 60 ? "blue" : "gray"}
@@ -196,9 +194,8 @@ const AdminDashboard: React.FC = () => {
                   </th>
                 </tr>
               </thead>
-
               <tbody className="bg-white divide-y divide-gray-200">
-                {sortedReminders.map((reminder) => (
+                {sortedReminders.map((reminder: ReminderView) => (
                   <tr key={reminder.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{reminder.customer_name}</div>
@@ -206,15 +203,12 @@ const AdminDashboard: React.FC = () => {
                         {reminder.vehicle_number} | {reminder.mobile_number}
                       </div>
                     </td>
-
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {reminder.product_name}
                     </td>
-
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(reminder.expiry_date)}
                     </td>
-
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -228,7 +222,6 @@ const AdminDashboard: React.FC = () => {
                         {reminder.days_until_expiry <= 0 ? "Expired" : `${reminder.days_until_expiry} days`}
                       </span>
                     </td>
-
                     <td className="px-4 py-3 whitespace-nowrap">
                       {reminder.warranty_renewed ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -244,7 +237,6 @@ const AdminDashboard: React.FC = () => {
                         </span>
                       )}
                     </td>
-
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Button
                         onClick={() =>
