@@ -1,9 +1,17 @@
 import React, { useState } from "react";
 import { useUnifiedData } from "../../contexts/UnifiedDataContext";
-import { COLLECTIONS } from "../../types/index";
 import { formatDate } from "../../lib/utils";
 import Card from "../common/Card";
 import Button from "../common/Button";
+
+// Directly define COLLECTIONS to avoid import issues
+const COLLECTIONS = {
+  CUSTOMERS: 'customers',
+  PRODUCTS: 'products',
+  MAPPINGS: 'mappings',
+  SERVICES: 'services',
+  LOGS: 'logs'
+} as const;
 
 const AdminDashboard: React.FC = () => {
   const { reminders, stats, meta, updateItem, loading, refreshData } = useUnifiedData();
@@ -19,42 +27,33 @@ const AdminDashboard: React.FC = () => {
 
       if (result.success) {
         alert(`✅ Reminder sent to ${customerName}`);
-        await refreshData(); // Refresh to update the UI
+        await refreshData();
       } else {
         alert(`❌ Error sending reminder: ${result.error}`);
       }
     }
   };
 
-  // ✅ Loading Skeleton
+  // Loading Skeleton - only show on initial load
   if (loading && reminders.length === 0) {
     return (
       <div className="space-y-6 px-4 md:px-0">
         <h1 className="text-xl md:text-3xl font-bold text-gray-800">
           Admin Dashboard
         </h1>
-
-        {/* Skeleton Loader */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="bg-white p-6 rounded-xl shadow-lg animate-pulse"
-            >
+            <div key={i} className="bg-white p-6 rounded-xl shadow-lg animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
               <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
             </div>
           ))}
         </div>
-
         <div className="bg-white p-6 rounded-xl shadow-lg">
           <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="h-12 bg-gray-100 rounded animate-pulse"
-              ></div>
+              <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
             ))}
           </div>
         </div>
@@ -62,6 +61,7 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  // Filter reminders - only show non-renewed and within days limit
   const filteredReminders = reminders.filter(
     (reminder) => reminder.days_until_expiry <= filterDays && !reminder.warranty_renewed
   );
@@ -75,25 +75,19 @@ const AdminDashboard: React.FC = () => {
         Admin Dashboard
       </h1>
 
+      {/* Offline Indicator */}
       {!meta.isOnline && (
         <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-300">
           <div className="flex items-center">
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             <span>You are offline. Showing cached data.</span>
           </div>
         </div>
       )}
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="text-center">
           <div className="text-3xl font-bold text-blue-600">
@@ -111,7 +105,7 @@ const AdminDashboard: React.FC = () => {
 
         <Card className="text-center">
           <div className="text-3xl font-bold text-red-600">
-            {stats.expiringThisWeek}
+            {stats.expiringThisWeek || 0}
           </div>
           <div className="text-gray-600">Expiring This Week</div>
         </Card>
@@ -124,6 +118,7 @@ const AdminDashboard: React.FC = () => {
         </Card>
       </div>
 
+      {/* Reminders Table */}
       <Card title="Warranty Expiry Reminders">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-semibold">
