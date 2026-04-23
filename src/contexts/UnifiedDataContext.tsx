@@ -102,6 +102,12 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
     const assignmentsView = rawData.mappings.map(mapping => {
       const customer = rawData.customers.find(c => c.id === mapping.customer_id);
       const product = rawData.products.find(p => p.id === mapping.product_id);
+      const expiryDate = mapping.warranty_expiry_date ? new Date(mapping.warranty_expiry_date) : null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isExpired = expiryDate ? expiryDate < today : false;
+      const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      
       return {
         ...mapping,
         customer_details: customer || {},
@@ -110,9 +116,9 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
         product_name: product ? product.product_name : 'Unknown',
         vehicle_number: customer?.vehicle_number || 'N/A',
         mobile_number: customer?.mobile_number || 'N/A',
-        days_until_expiry: null,
-        is_expired: false,
-        is_expiring_soon: false
+        days_until_expiry: daysUntilExpiry,
+        is_expired: isExpired,
+        is_expiring_soon: !isExpired && daysUntilExpiry !== null && daysUntilExpiry <= 30
       };
     });
     
@@ -144,14 +150,34 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
       };
     });
     
-    // Create reminders view
+    // Create reminders view - FIXED with is_expired property
     const remindersView = rawData.mappings
       .filter(m => m.warranty_expiry_date)
       .map(mapping => {
         const customer = rawData.customers.find(c => c.id === mapping.customer_id);
         const product = rawData.products.find(p => p.id === mapping.product_id);
+        
+        const expiryDate = new Date(mapping.warranty_expiry_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const isExpired = daysUntilExpiry < 0;
+        
+        let reminderLevel: 'info' | 'warning' | 'critical' = 'info';
+        if (!isExpired) {
+          if (daysUntilExpiry <= 7) {
+            reminderLevel = 'critical';
+          } else if (daysUntilExpiry <= 30) {
+            reminderLevel = 'warning';
+          }
+        } else {
+          reminderLevel = 'critical';
+        }
+        
         return {
-          ...mapping,
+          id: mapping.id,
+          firebase_id: mapping.firebase_id,
+          assignment_id: mapping.id,
           customer_details: customer || {},
           product_details: product || {},
           customer_name: customer ? `${customer.first_name} ${customer.last_name}` : 'Unknown',
@@ -159,12 +185,17 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
           vehicle_number: customer?.vehicle_number || 'N/A',
           mobile_number: customer?.mobile_number || 'N/A',
           expiry_date: mapping.warranty_expiry_date,
-          days_until_expiry: 0,
-          reminder_level: 'info' as const,
-          reminder_to_send: null,
-          is_expiring_soon: false,
-          is_expiring_this_week: false,
-          is_expiring_today: false
+          days_until_expiry: isExpired ? 0 : daysUntilExpiry,
+          reminder_level: reminderLevel,
+          is_expired: isExpired, // ✅ THIS IS THE FIX
+          rem_1_sent: mapping.reminder_status?.rem_1_sent || false,
+          rem_2_sent: mapping.reminder_status?.rem_2_sent || false,
+          rem_3_sent: mapping.reminder_status?.rem_3_sent || false,
+          renewal_sent: mapping.reminder_status?.renewal_sent || false,
+          warranty_renewed: mapping.reminder_status?.warranty_renewed || false,
+          notes: mapping.notes,
+          created_at: mapping.created_at,
+          updated_at: mapping.updated_at
         };
       });
     
@@ -174,8 +205,8 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
       totalAssignments: rawData.mappings.length,
       totalServices: rawData.services.length,
       totalLogs: rawData.logs.length,
-      expiringThisWeek: 0,
-      expiringThisMonth: 0,
+      expiringThisWeek: remindersView.filter(r => !r.is_expired && r.days_until_expiry <= 7).length,
+      expiringThisMonth: remindersView.filter(r => !r.is_expired && r.days_until_expiry <= 30).length,
       pendingServices: rawData.services.filter(s => s.service_status === 'Pending').length
     };
     
@@ -291,13 +322,11 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
   // ==================== LOAD ON MOUNT AND REFRESH TRIGGER ====================
   useEffect(() => {
     loadAllData();
-  }, [refreshTrigger]); // Add refreshTrigger to dependencies
+  }, [refreshTrigger]);
 
   // ==================== ADD ITEM ====================
   const addItem = useCallback(async (collectionName: CollectionName, itemData: any): Promise<ApiResponse> => {
     try {
-      setLoading(true); // Show loading state
-      
       const docRef = await addDoc(collection(db, collectionName), {
         ...itemData,
         created_at: serverTimestamp(),
@@ -306,7 +335,7 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
       
       console.log(`✅ Added document to ${collectionName} with ID: ${docRef.id}`);
       
-      // Trigger refresh by incrementing refreshTrigger
+      // Trigger refresh
       setRefreshTrigger(prev => prev + 1);
       
       return { 
@@ -316,7 +345,6 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
       };
     } catch (error: any) {
       console.error(`Error adding to ${collectionName}:`, error);
-      setLoading(false);
       return { 
         success: false, 
         error: error.message,
@@ -328,8 +356,6 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
   // ==================== UPDATE ITEM ====================
   const updateItem = useCallback(async (collectionName: CollectionName, id: string, updates: any): Promise<ApiResponse> => {
     try {
-      setLoading(true);
-      
       const docRef = doc(db, collectionName, id);
       await updateDoc(docRef, {
         ...updates,
@@ -338,13 +364,12 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
       
       console.log(`✅ Updated document in ${collectionName} with ID: ${id}`);
       
-      // Trigger refresh by incrementing refreshTrigger
+      // Trigger refresh
       setRefreshTrigger(prev => prev + 1);
       
       return { success: true, message: 'Updated successfully' };
     } catch (error: any) {
       console.error(`Error updating ${collectionName}:`, error);
-      setLoading(false);
       return { success: false, error: error.message };
     }
   }, []);
@@ -352,20 +377,17 @@ const UnifiedDataProvider: React.FC<UnifiedDataProviderProps> = ({ children }) =
   // ==================== DELETE ITEM ====================
   const deleteItem = useCallback(async (collectionName: CollectionName, id: string): Promise<ApiResponse> => {
     try {
-      setLoading(true);
-      
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
       
       console.log(`✅ Deleted document from ${collectionName} with ID: ${id}`);
       
-      // Trigger refresh by incrementing refreshTrigger
+      // Trigger refresh
       setRefreshTrigger(prev => prev + 1);
       
       return { success: true, message: 'Deleted successfully' };
     } catch (error: any) {
       console.error(`Error deleting from ${collectionName}:`, error);
-      setLoading(false);
       return { success: false, error: error.message };
     }
   }, []);
