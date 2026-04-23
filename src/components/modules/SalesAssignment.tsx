@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUnifiedData } from '../../contexts/UnifiedDataContext';
-import { COLLECTIONS, Customer, Product, ProductAssignment } from '../../types';
+import { COLLECTIONS, Customer, Product, ProductAssignment } from '../../types/index';
 import { calculateExpiryDate, formatDate } from '../../lib/utils';
 import Card from '../common/Card';
 import Button from '../common/Button';
