@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useUnifiedData } from '../../contexts/UnifiedDataContext';
+// FIXED IMPORT - Removed /index
 import { COLLECTIONS } from '../../types';
 import { formatDate } from '../../lib/utils';
 import Card from '../common/Card';
@@ -17,7 +18,7 @@ const ServiceMaster: React.FC = () => {
     deleteItem,
     loading,
     stats,
-    refreshData  // Add refreshData function
+    refreshData
   } = useUnifiedData();
   
   const [formData, setFormData] = useState({
@@ -74,7 +75,6 @@ const ServiceMaster: React.FC = () => {
       }
       
       if (result.success) {
-        // Refresh data after successful operation
         await refreshData();
         
         setMessage({ 
@@ -120,7 +120,6 @@ const ServiceMaster: React.FC = () => {
         const result = await deleteItem(COLLECTIONS.SERVICES, id);
         
         if (result.success) {
-          // Refresh data after deletion
           await refreshData();
           
           setMessage({ type: 'success', text: 'Service record deleted successfully!' });
@@ -154,7 +153,6 @@ const ServiceMaster: React.FC = () => {
     setMessage(null);
   };
   
-  // Show loading only on initial load, not during refresh operations
   if (loading && services.length === 0) {
     return (
       <div className="text-center py-8">
@@ -303,7 +301,7 @@ const ServiceMaster: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {services.map(service => (
+              {services.map((service: any) => (
                 <tr key={service.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {formatDate(service.service_date)}
@@ -316,7 +314,7 @@ const ServiceMaster: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {service.service_type}
-                  </td>
+                  </tr>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       service.service_status === 'Completed' ? 'bg-green-100 text-green-800' :
@@ -331,23 +329,16 @@ const ServiceMaster: React.FC = () => {
                       <button
                         onClick={() => handleEdit(service)}
                         disabled={deletingId === service.id || operationLoading || isSubmitting}
-                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(service.id)}
                         disabled={deletingId === service.id || operationLoading || isSubmitting}
-                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50"
                       >
-                        {deletingId === service.id ? (
-                          <span className="inline-flex items-center">
-                            <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-red-600 mr-1"></span>
-                            Deleting...
-                          </span>
-                        ) : (
-                          'Delete'
-                        )}
+                        {deletingId === service.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </td>
