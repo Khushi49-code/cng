@@ -1,32 +1,33 @@
 import React, { useState } from "react";
 import { useUnifiedData } from "../../contexts/UnifiedDataContext";
-import { COLLECTIONS } from "../../types";
+import { COLLECTIONS } from "../../types/index";
 import { formatDate } from "../../lib/utils";
 import Card from "../common/Card";
 import Button from "../common/Button";
 
 const AdminDashboard: React.FC = () => {
-  const { reminders, stats, meta, updateItem, loading } = useUnifiedData();
+  const { reminders, stats, meta, updateItem, loading, refreshData } = useUnifiedData();
 
   const [filterDays, setFilterDays] = useState<number>(30);
 
-  const handleSendReminder = async (mappingId: string, customerName: string) => {
-    if (window.confirm(`Send reminder to ${customerName}?`)) {
-      const result = await updateItem(COLLECTIONS.MAPPINGS, mappingId, {
+  const handleSendReminder = async (assignmentId: string, customerName: string) => {
+    if (window.confirm(`Send reminder to ${customerName}? This will mark renewal reminder as sent.`)) {
+      const result = await updateItem(COLLECTIONS.MAPPINGS, assignmentId, {
         "reminder_status.renewal_sent": true,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
 
       if (result.success) {
-        alert(`Reminder sent to ${customerName}`);
+        alert(`✅ Reminder sent to ${customerName}`);
+        await refreshData(); // Refresh to update the UI
       } else {
-        alert("Error sending reminder");
+        alert(`❌ Error sending reminder: ${result.error}`);
       }
     }
   };
 
   // ✅ Loading Skeleton
-  if (loading) {
+  if (loading && reminders.length === 0) {
     return (
       <div className="space-y-6 px-4 md:px-0">
         <h1 className="text-xl md:text-3xl font-bold text-gray-800">
@@ -62,8 +63,11 @@ const AdminDashboard: React.FC = () => {
   }
 
   const filteredReminders = reminders.filter(
-    (reminder) => reminder.days_until_expiry <= filterDays
+    (reminder) => reminder.days_until_expiry <= filterDays && !reminder.warranty_renewed
   );
+
+  // Sort by urgency (days left ascending)
+  const sortedReminders = [...filteredReminders].sort((a, b) => a.days_until_expiry - b.days_until_expiry);
 
   return (
     <div className="space-y-6 px-4 md:px-0">
@@ -121,9 +125,12 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <Card title="Warranty Expiry Reminders">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-semibold">
             Reminders for next {filterDays} days
+            <span className="ml-2 text-sm text-gray-500">
+              ({sortedReminders.length} reminders)
+            </span>
           </h3>
 
           <div className="flex space-x-2">
@@ -150,79 +157,95 @@ const AdminDashboard: React.FC = () => {
             >
               30 Days
             </Button>
+
+            <Button
+              onClick={() => setFilterDays(60)}
+              color={filterDays === 60 ? "blue" : "gray"}
+              className="text-xs"
+            >
+              60 Days
+            </Button>
           </div>
         </div>
 
-        {filteredReminders.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            No warranties expiring in the next {filterDays} days
+        {sortedReminders.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+            <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p>No warranties expiring in the next {filterDays} days</p>
+            <p className="text-sm mt-1">All warranties are active or already renewed.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Customer
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Product
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Expiry Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Days Left
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
               </thead>
 
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredReminders.map((reminder) => (
+                {sortedReminders.map((reminder) => (
                   <tr key={reminder.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div>{reminder.customer_name}</div>
+                      <div className="font-medium text-gray-900">{reminder.customer_name}</div>
                       <div className="text-xs text-gray-500">
-                        {reminder.vehicle_number}
+                        {reminder.vehicle_number} | {reminder.mobile_number}
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {reminder.product_name}
                     </td>
 
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(reminder.expiry_date)}
                     </td>
 
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          reminder.days_until_expiry <= 1
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          reminder.days_until_expiry <= 0
                             ? "bg-red-100 text-red-800"
                             : reminder.days_until_expiry <= 7
                             ? "bg-orange-100 text-orange-800"
                             : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
-                        {reminder.days_until_expiry} days
+                        {reminder.days_until_expiry <= 0 ? "Expired" : `${reminder.days_until_expiry} days`}
                       </span>
                     </td>
 
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {reminder.reminder_to_send ? (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          Reminder due
+                      {reminder.warranty_renewed ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          ✓ Renewed
+                        </span>
+                      ) : reminder.renewal_sent ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Reminder Sent
                         </span>
                       ) : (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
-                          Monitoring
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Pending
                         </span>
                       )}
                     </td>
@@ -230,13 +253,15 @@ const AdminDashboard: React.FC = () => {
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Button
                         onClick={() =>
-                          handleSendReminder(reminder.id, reminder.customer_name)
+                          handleSendReminder(reminder.assignment_id, reminder.customer_name)
                         }
                         color="blue"
                         className="text-xs py-1 px-2"
-                        disabled={!meta.isOnline}
+                        disabled={!meta.isOnline || reminder.warranty_renewed || reminder.renewal_sent}
                       >
-                        {meta.isOnline ? "Send Reminder" : "Offline"}
+                        {reminder.warranty_renewed ? "Renewed" : 
+                         reminder.renewal_sent ? "Sent" : 
+                         !meta.isOnline ? "Offline" : "Send Reminder"}
                       </Button>
                     </td>
                   </tr>
