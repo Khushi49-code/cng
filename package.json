@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/jquery": "^4.0.0",
     "firebase": "^9.23.0",
+    "firebase-admin": "^13.8.0",
     "jquery": "^4.0.0",
     "next": "16.1.6",
     "react": "19.2.3",
