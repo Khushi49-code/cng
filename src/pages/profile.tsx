@@ -15,7 +15,7 @@ const ProfilePage = () => {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [activeSection, setActiveSection] = useState(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   // Name
   const [newName, setNewName] = useState(user?.displayName ?? '');
@@ -26,14 +26,14 @@ const ProfilePage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const showMessage = (type, text) => {
+  const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
   };
 
-  const toggle = (section) => {
+  const toggle = (section: string) => {
     setActiveSection((prev) => (prev === section ? null : section));
     setMessage(null);
     if (section === 'password') {
@@ -56,7 +56,7 @@ const ProfilePage = () => {
       await user.getIdToken(true);
       showMessage('success', 'Name updated successfully!');
       setActiveSection(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Name update error:', error);
       showMessage('error', error.message || 'Failed to update name.');
     } finally {
@@ -101,7 +101,7 @@ const ProfilePage = () => {
     try {
       const currentUser = user;
       const credential = EmailAuthProvider.credential(
-        currentUser.email,
+        currentUser.email!,
         currentPassword
       );
       
@@ -127,7 +127,7 @@ const ProfilePage = () => {
       setNewPassword('');
       setConfirmPassword('');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Password update error:', error);
       
       switch (error.code) {
@@ -376,8 +376,7 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Add this style for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;
